@@ -1,0 +1,36 @@
+config:
+  name: console-web
+  namespace: application
+  replicas: 2
+  vaultpath: console/console-service
+  vault: false
+  
+image:
+  repository: asia-southeast1-docker.pkg.dev/platform-standalone-440506/application/console-web
+  tag: develop-529b368b
+
+imagePullSecrets: 
+  name: gitlab-registry
+service:
+  type: NodePort
+  port: 8081
+env:
+  env: staging
+  envFromSecret: env-secrets
+  envFromSecretUse: false
+  env_config:
+    - name: Value1
+      value: Value1
+    - name: Value2
+      value: Value2
+
+ingresPrivate: true
+ingresPrivateConfig:
+  DomainName: console-web.internal.classroom-demo.site
+
+
+
+
+
+
+

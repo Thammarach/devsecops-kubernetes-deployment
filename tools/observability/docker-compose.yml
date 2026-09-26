@@ -1,0 +1,18 @@
+services:
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+      - ./tempo-data:/tmp/tempo
+    ports:
+      - "4318:4318"   # OTLP http
+      - "4317:4317"   # OTLP grpc
+      - "3200:3200"   # Tempo query
+      - "9095:9095"   # gRPC server
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"

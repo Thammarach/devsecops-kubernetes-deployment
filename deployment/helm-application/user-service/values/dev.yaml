@@ -1,0 +1,36 @@
+config:
+  name: user-service
+  namespace: application
+  replicas: 2
+  vaultpath: application/user-service
+  vault: true
+  
+image:
+  repository: asia-southeast1-docker.pkg.dev/platform-standalone-440506/application/user-service
+  tag: develop-529b368b
+
+imagePullSecrets: 
+  name: gitlab-registry
+service:
+  type: NodePort
+  port: 8083
+env:
+  env: staging
+  envFromSecret: env-secrets
+  envFromSecretUse: false
+  env_config:
+    - name: Value1
+      value: Value1
+    - name: Value2
+      value: Value2
+
+ingresPrivate: true
+ingresPrivateConfig:
+  DomainName: user-service.internal.classroom-demo.site
+
+
+
+
+
+
+

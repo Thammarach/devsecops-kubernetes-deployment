@@ -1,0 +1,59 @@
+version: '2.2'
+services:
+  sonarqube:
+    image: sonarqube:10-community
+    hostname: sonarqube
+    container_name: sonarqube
+    ports:
+      - 80:9000
+    depends_on:
+      - sonarqube-db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+      SONAR_WEB_CONTEXT: "/"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-file: 5
+        max-size: 50m
+    networks:
+      - sonarqube_network
+
+  sonarqube-db:
+    image: postgres:15.2-alpine3.17
+    hostname: postgresql
+    container_name: postgresql
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-file: 5
+        max-size: 50m
+    networks:
+      - sonarqube_network
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql:
+  postgresql_data:
+
+networks:
+  sonarqube_network:
+    external: true
+    name: sonarqube

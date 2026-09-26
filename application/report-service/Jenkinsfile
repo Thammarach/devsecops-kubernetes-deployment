@@ -1,0 +1,126 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_NAME = "report-service"
+        
+        TAG = getBranchName()
+        PATH_WORK = ""
+    }
+
+    stages {
+        stage('SAST Analysis'){
+            when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps {
+                withCredentials([string(credentialsId : 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]){
+                    sh """
+                        echo "Running SonarQube analysis..."
+                        mvn sonar:sonar \
+                          -Dsonar.host.url=${SONAR_HOST} \
+                          -Dsonar.projectKey=${PROJECT_NAME} \
+                          -Dsonar.branch.target=${TAG} \
+                          -Dsonar.login=${SONAR_TOKEN}
+                    """
+                }
+            }
+        }
+
+        stage('Set Images'){
+            when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps{
+               script {
+                    env.IMAGES_NAME = "${env.NAME_REGISTRY}/${env.PROJECT_NAME}:${TAG}" 
+               }
+            }
+        }
+
+        stage('Build'){
+             when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps{
+                withCredentials([file(credentialsId: 'REGISTRY_GCP', variable: "REGISTRY_GCP")]){
+                    sh 'cat $REGISTRY_GCP | docker login -u _json_key --password-stdin $REGISTER_URL'
+                    sh 'echo $IMAGES_NAME'
+                    sh 'docker build -t $IMAGES_NAME .' 
+                }
+            }
+        }
+
+        stage("Scan Docker Image") {
+            when {
+                anyOf { branch 'develop'; tag "*" }
+            }
+            steps {
+                script {
+                    sh 'mkdir -p trivy-report'
+                    sh """
+                        curl -O https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+                        trivy image --format template --template "@html.tpl" -o trivy-report/trivy-report.html ${IMAGES_NAME}
+                    """
+                }
+
+                publishHTML(target: [
+                    reportName: 'Trivy Scan Report',
+                    reportDir: 'trivy-report',
+                    reportFiles: 'trivy-report.html',
+                    keepAll: true,
+                    alwaysLinkToLastBuild: true,
+                    allowMissing: false
+                ])
+            }
+        }
+
+
+        stage("Push To GCR"){
+             when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps {
+                withCredentials([file(credentialsId: 'REGISTRY_GCP', variable: "REGISTRY_GCP")]){
+                    sh 'cat $REGISTRY_GCP | docker login -u _json_key --password-stdin $REGISTER_URL'
+                    sh "docker push ${IMAGES_NAME}"
+                } 
+            }
+        }
+
+        stage('Remove Image'){
+             when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps {
+                sh "docker rmi -f ${IMAGES_NAME}"
+            }
+        }
+
+        stage('change version') {
+            when {
+                anyOf { branch 'develop'; tag "*"}
+            }
+            steps{
+                withCredentials([string(credentialsId: 'GITLAB_TOKEN', variable: "GITLAB_TOKEN")]){
+                    sh """
+                        rm -rf helm-application
+                        git clone http://:${GITLAB_TOKEN}@git.svc.classroom-demo.site/platform/helm-application.git
+                        cd helm-application && chmod +x ./jenkins.sh && ./jenkins.sh '$WORKSPACE/helm-application' $PROJECT_NAME $TAG 
+                    """
+                }
+
+            }
+        }
+
+    }
+}
+
+def getBranchName(){
+    def branch_name = GIT_BRANCH
+    def commitSha = GIT_COMMIT.take(8)
+    if(branch_name.contains("origin/")) {
+        branch_name = branch_name.split("origin/")[1]
+    }
+    return (branch_name == "develop") ? "${branch_name}-${commitSha}" : branch_name
+}

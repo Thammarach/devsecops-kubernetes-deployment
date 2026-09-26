@@ -1,0 +1,36 @@
+config:
+  name: report-service
+  namespace: application
+  replicas: 2
+  vaultpath: application/report-service
+  vault: true
+  
+image:
+  repository: asia-southeast1-docker.pkg.dev/platform-standalone-440506/application/report-service
+  tag: develop-529b368b
+
+imagePullSecrets: 
+  name: gitlab-registry
+service:
+  type: NodePort
+  port: 8081
+env:
+  env: staging
+  envFromSecret: env-secrets
+  envFromSecretUse: false
+  env_config:
+    - name: URL_MONITOR
+      value: 192.168.1.10
+    - name: Value2
+      value: Value2
+
+ingresPrivate: true
+ingresPrivateConfig:
+  DomainName: report-service.internal.classroom-demo.site
+
+
+
+
+
+
+
