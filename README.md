@@ -1,20 +1,14 @@
 # 🏗️ DevSecOps Full Jenkins + ArgoCD on Multi-Kubernetes 
----
 
 ## 📖 หัวข้อการเรียนรู้
 
 ### 1. ทำความรู้จัก Infrastructure และองค์ประกอบหลัก
 - 💻 **Compute** – เครื่องเซิร์ฟเวอร์หรือ VM ที่ใช้ประมวลผล  
 
-
-> 🔎 เราจะใช้ **Google Cloud Platform (GCP)** เป็นหลัก และมีภาพ Diagram Infra ประกอบ (อยู่ในโฟลเดอร์ `image/`)
-![image description](/image/infra.png)
-
-
 ### 2. ติดตั้ง Software
 Jenkins (CI/CD Server)
 
-```
+```bash
 sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
   https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
 
@@ -48,13 +42,11 @@ wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dear
 echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
 sudo apt-get update
 sudo apt-get install trivy
-
 ```
-
 
 install docker, docker compose
-```
 
+```bash
 sudo apt-get update
 sudo apt-get install ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -71,7 +63,8 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 ```
 
 🚀 ArgoCD (GitOps Deployment)
-```
+
+```bash
 kubectl create namespace argocd
 
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -107,11 +100,11 @@ Context '127.0.0.1:8080' updated
 argocd cluster add arn:aws:eks:ap-southeast-7:638846798909:cluster/eks-training --kubeconfig eks.yml
 WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `arn:aws:eks:ap-southeast-7:638846798909:cluster/eks-training` with full cluster level privileges. Do you want to continue [y/N]? y
 {"level":"fatal","msg":"failed to create service account \"argocd-manager\" in namespace \"kube-system\": Post \"https://25CB6DD8A775DFFC280B353EAF48547E.yl4.ap-southeast-7.eks.amazonaws.com/api/v1/namespaces/kube-system/serviceaccounts\": getting credentials: exec: executable aws not found\n\nIt looks like you are trying to use a client-go credential plugin that is not installed.\n\nTo learn more about this feature, consult the documentation available at:\n      https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins","time":"2026-10-13T15:33:24Z"}
-
 ```
 
 📊 SonarQube (Code Quality – Docker Compose)
-```
+
+```bash
 cd day-1/tool/sonaqube
 docker network create sonarqube
 sudo nano /etc/sysctl.conf
@@ -121,7 +114,8 @@ docker compose up -d
 ```
 
 downloads
-```
+
+```bash
 curl https://gitlab.com/wenwen6046/devops-bootcamp/-/raw/main/day-1/tool/sonaqube/docker-compose.yml -o docker-compose.yml
 curl https://gitlab.com/wenwen6046/devops-bootcamp/-/raw/main/day-1/tool/observability/docker-compose.yml -o docker-compose.yml
 curl https://gitlab.com/wenwen6046/devops-bootcamp/-/raw/main/day-1/tool/observability/tempo.yaml -o tempo.yaml
@@ -129,14 +123,15 @@ curl https://gitlab.com/wenwen6046/devops-bootcamp/-/raw/main/day-1/tool/authent
 ```
 
 install Vault On Kubernetes
-```
+
+```bash
 helm upgrade --install --wait vault-operator oci://ghcr.io/bank-vaults/helm-charts/vault-operator
 kubectl kustomize https://github.com/bank-vaults/vault-operator/deploy/rbac | kubectl apply -f -
 kubectl apply -f https://raw.githubusercontent.com/bank-vaults/vault-operator/v1.21.0/deploy/examples/cr-raft.yaml
 kubectl get pods
 ```
 
-```
+```bash
 kubectl port-forward vault-0 8200 &
 
 export VAULT_ADDR=https://vault-server.svc.microk8s.site
@@ -149,8 +144,7 @@ vault status
 
 export VAULT_TOKEN=$(kubectl get secrets vault-unseal-keys -o jsonpath={.data.vault-root} | base64 --decode)
 
-##
-สำหรับ microk8s
+# For microk8s
 
 microk8s kubectl port-forward vault-0 8200:8200 &
 
@@ -163,35 +157,36 @@ export VAULT_CACERT=$PWD/vault-ca.crt
 export VAULT_TOKEN=$(microk8s kubectl get secrets vault-unseal-keys -o jsonpath={.data.vault-root} | base64 --decode)
 
 echo $VAULT_TOKEN
-
-
 ```
 
 Deploy Webhook Vault
-```
+
+```bash
 kubectl create namespace vault-infra
 kubectl label namespace vault-infra name=vault-infra
 
 helm upgrade --install --wait vault-secrets-webhook oci://ghcr.io/bank-vaults/helm-charts/vault-secrets-webhook --namespace vault-infra
 
 kubectl get pods --namespace vault-infra
-
 ```
 
 Install Prometheus and Grafana on gke
-```
+
+```bash
 kubectl create namespace monitoring
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 # helm install prometheus-operator prometheus-community/kube-prometheus-stack -n monitoring
 ```
+
 base64 to string
-```
+
+```bash
 echo VEEtN243eU...... | base64 --decode
 ```
 
 username password สำหรับ grafana
-```
+```bash
 user : admin
 pass : prom-operator
 ```
@@ -199,24 +194,26 @@ pass : prom-operator
 อ้างอิง https://prometheus-community.github.io/helm-charts/
 
 install grafana loki for logging view
-```
+
+```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 helm install loki grafana/loki-stack -n monitoring
 ```
 อ้างอิง https://grafana.com/docs/loki/latest/setup/install/helm/install-monolithic/
 
 Host สำหรับใช้เชื่อมต่อ
-```
+
+```bash
 http://loki.monitoring.svc.cluster.local:3100
 ```
 
-```
+```bash
 #helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo add traefik https://traefik.github.io/charts
 helm repo update
 ```
 
-```
+```bash
 # helm install nginx-ingress-public ingress-nginx/ingress-nginx \
   --namespace kube-system \
   --set controller.service.type=LoadBalancer \
@@ -237,24 +234,4 @@ kubectl create secret docker-registry gcr-json-key \
   --docker-username=_json_key \
   --docker-password="$(cat key.json)" \
   --docker-email=gitlab-ci@xxxx.iam.gserviceaccount.com -n application
-
-# For Real
-kubectl create secret docker-registry gitlab-registry \
-  --docker-server=https://gitlab.com \
-  --docker-username="thammarach.dan" \
-  --docker-password="glpat-Pq3iRthGscPwDoCM_YpWnWM6MQpvOjEKdTpkcDVjOQ8.01.170hgvfis" -n application
-
-kubectl create secret docker-registry gitlab-registry --docker-server=registry.gitlab.com --docker-username=thammarach.dan  --docker-password=glpat-Pq3iRthGscPwDoCM_YpWnWM6MQpvOjEKdTpkcDVjOQ8.01.170hgvfis -n application
 ```
-
-
-aws ec2 describe-network-interfaces --region ap-southeast-7 \
-  --filters Name=addresses.private-ip-address,Values=10.30.103.252 \
-  --query 'NetworkInterfaces[].[Description,VpcId,SubnetId]' --output table
-
-aws ec2 describe-network-interfaces --region ap-southeast-7 \
-  --filters Name=addresses.private-ip-address,Values=10.30.103.252 \
-  --query 'NetworkInterfaces[].[Description,VpcId]' --output table
-
-aws elbv2 describe-listeners --region ap-southeast-7 --load-balancer-arn arn:aws:elasticloadbalancing:ap-southeast-7:638846798909:loadbalancer/net/k8s-traefik-traefikp-967cb309ae/f3e86ee9d43f178d \
-  --query 'Listeners[].[Port,DefaultActions[0].TargetGroupArn]' --output table
