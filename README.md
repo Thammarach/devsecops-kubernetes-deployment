@@ -81,9 +81,32 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 # Forward Port เพื่อเข้า UI
 kubectl port-forward svc/argocd-server -n argocd 8080:443
+microk8s kubectl port-forward svc/argocd-server -n argocd 8080:443 &
 
 # Namespace สำหรับ Application
 kubectl create namespace application
+
+# Install ArGo CLI
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
+
+argocd version
+> argocd: v3.5.5+a5038b0
+
+argocd login 127.0.0.1:8080 --username admin --password P@ssw0rd --insecure
+Handling connection for 8080
+Handling connection for 8080
+Handling connection for 8080
+Handling connection for 8080
+Handling connection for 8080
+'admin:login' logged in successfully
+Context '127.0.0.1:8080' updated
+
+# You should be log in aws with cli before add add cluster
+argocd cluster add arn:aws:eks:ap-southeast-7:638846798909:cluster/eks-training --kubeconfig eks.yml
+WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `arn:aws:eks:ap-southeast-7:638846798909:cluster/eks-training` with full cluster level privileges. Do you want to continue [y/N]? y
+{"level":"fatal","msg":"failed to create service account \"argocd-manager\" in namespace \"kube-system\": Post \"https://25CB6DD8A775DFFC280B353EAF48547E.yl4.ap-southeast-7.eks.amazonaws.com/api/v1/namespaces/kube-system/serviceaccounts\": getting credentials: exec: executable aws not found\n\nIt looks like you are trying to use a client-go credential plugin that is not installed.\n\nTo learn more about this feature, consult the documentation available at:\n      https://kubernetes.io/docs/reference/access-authn-authz/authentication/#client-go-credential-plugins","time":"2026-10-13T15:33:24Z"}
 
 ```
 
@@ -116,7 +139,7 @@ kubectl get pods
 ```
 kubectl port-forward vault-0 8200 &
 
-export VAULT_ADDR=https://127.0.0.1:8200
+export VAULT_ADDR=https://vault-server.svc.microk8s.site
 
 kubectl get secret vault-tls -o jsonpath="{.data.ca\.crt}" | base64 --decode > $PWD/vault-ca.crt
 
@@ -160,7 +183,7 @@ Install Prometheus and Grafana on gke
 kubectl create namespace monitoring
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
-helm install prometheus-operator prometheus-community/kube-prometheus-stack -n monitoring
+# helm install prometheus-operator prometheus-community/kube-prometheus-stack -n monitoring
 ```
 base64 to string
 ```
@@ -188,11 +211,13 @@ http://loki.monitoring.svc.cluster.local:3100
 ```
 
 ```
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
 ```
 
 ```
-helm install nginx-ingress-public ingress-nginx/ingress-nginx \
+# helm install nginx-ingress-public ingress-nginx/ingress-nginx \
   --namespace kube-system \
   --set controller.service.type=LoadBalancer \
   --set controller.ingressClass=nginx \
@@ -200,12 +225,36 @@ helm install nginx-ingress-public ingress-nginx/ingress-nginx \
   --set controller.metrics.serviceMonitor.additionalLabels.release="prometheus-operator" \
   --set controller.service.annotations."cloud\.google\.com/load-balancer-type"="External"
 
+helm install traefik-public traefik/traefik --namespace traefik --create-namespace -f traefik-values.yaml
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm upgrade traefik-public traefik/traefik -n traefik -f traefik-values.yaml
 ```
 Create secret
-```
+```bash
 kubectl create secret docker-registry gcr-json-key \
   --docker-server=https://asia-southeast1-docker.pkg.dev \
   --docker-username=_json_key \
   --docker-password="$(cat key.json)" \
   --docker-email=gitlab-ci@xxxx.iam.gserviceaccount.com -n application
+
+# For Real
+kubectl create secret docker-registry gitlab-registry \
+  --docker-server=https://gitlab.com \
+  --docker-username="thammarach.dan" \
+  --docker-password="glpat-Pq3iRthGscPwDoCM_YpWnWM6MQpvOjEKdTpkcDVjOQ8.01.170hgvfis" -n application
+
+kubectl create secret docker-registry gitlab-registry --docker-server=registry.gitlab.com --docker-username=thammarach.dan  --docker-password=glpat-Pq3iRthGscPwDoCM_YpWnWM6MQpvOjEKdTpkcDVjOQ8.01.170hgvfis -n application
 ```
+
+
+aws ec2 describe-network-interfaces --region ap-southeast-7 \
+  --filters Name=addresses.private-ip-address,Values=10.30.103.252 \
+  --query 'NetworkInterfaces[].[Description,VpcId,SubnetId]' --output table
+
+aws ec2 describe-network-interfaces --region ap-southeast-7 \
+  --filters Name=addresses.private-ip-address,Values=10.30.103.252 \
+  --query 'NetworkInterfaces[].[Description,VpcId]' --output table
+
+aws elbv2 describe-listeners --region ap-southeast-7 --load-balancer-arn arn:aws:elasticloadbalancing:ap-southeast-7:638846798909:loadbalancer/net/k8s-traefik-traefikp-967cb309ae/f3e86ee9d43f178d \
+  --query 'Listeners[].[Port,DefaultActions[0].TargetGroupArn]' --output table

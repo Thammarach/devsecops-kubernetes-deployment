@@ -1,0 +1,19 @@
+ingressClass:
+  enabled: true
+  isDefaultClass: false
+  name: traefik
+
+service:
+  type: LoadBalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+
+# เปิดทีหลังเมื่อมี Prometheus Operator แล้ว
+metrics:
+  prometheus:
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: prometheus-operator
