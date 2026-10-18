@@ -137,32 +137,3 @@ module "irsa-lb-controller" {
 output "lb_controller_role_arn" {
   value = module.irsa-lb-controller.iam_role_arn
 }
-
-# เปลี่ยน config_map เป็น api_and_config_map
-# aws eks update-cluster-config --name eks-training --region ap-southeast-7 \
-#   --access-config authenticationMode=API_AND_CONFIG_MAP
-# arn:aws:iam::638846798909:root
-
-# aws eks create-access-entry \
-#   --cluster-name eks-training --region ap-southeast-7 \
-#   --principal-arn arn:aws:iam::638846798909:root
-
-# aws eks associate-access-policy \
-#   --cluster-name eks-training --region ap-southeast-7 \
-#   --principal-arn arn:aws:iam::638846798909:root \
-#   --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
-#   --access-scope type=cluster
-
-# helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
-#   --namespace kube-system \
-#   --set clusterName=eks-training \
-#   --set region=ap-southeast-7 \
-#   --set vpcId=vpc-07f8135e9a5a0d0a6 \
-#   --set serviceAccount.create=true \
-#   --set serviceAccount.name=aws-load-balancer-controller \
-#   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::638846798909:role/eks-training-lb-controller
-
-
-aws eks update-nodegroup-config --cluster-name eks-training --region ap-southeast-7 \
-  --nodegroup-name eks-training-group-1-20261003104521078700000018 \
-  --scaling-config minSize=1,maxSize=2,desiredSize=2
